@@ -1,6 +1,6 @@
 # currency_difference
 
-The application shows the difference in exchange rates for two dates.
+The application shows the difference in exchange rates for two dates
 
 ## Run
 
@@ -23,3 +23,12 @@ where:
 Example:
 
     http://127.0.0.1:5000/?date_req1=2002-02-02&date_req2=2002-09-02&iso_char_code=USD
+
+## The work done
+
+The technology stack is listed in the file **requirements.txt**
+
+- **Flask** is used to make http api work
+- **requests** is used to collect information from the site http://www.cbr.ru/development/sxml/
+- **xmltodict** is used to work with xml files
+

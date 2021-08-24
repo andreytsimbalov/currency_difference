@@ -31,4 +31,3 @@ The technology stack is listed in the file **requirements.txt**
 - **Flask** is used to make http api work
 - **requests** is used to collect information from the site http://www.cbr.ru/development/sxml/
 - **xmltodict** is used to work with xml files
-

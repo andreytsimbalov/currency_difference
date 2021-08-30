@@ -1,7 +1,5 @@
 from sqlalchemy import create_engine, Sequence, Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, sessionmaker
-import sqlalchemy
-import datetime as dt
 from datetime import datetime, date
 
 import requests
@@ -9,8 +7,9 @@ import xmltodict
 from constants import *
 import os
 
-# if os.path.exists(DATABASE):
-#     os.remove(DATABASE)
+create_database_flag = False
+if not os.path.exists(DATABASE):
+    create_database_flag = True
 engine = create_engine('sqlite:///' + DATABASE, echo=True)
 Base = declarative_base()
 
@@ -69,13 +68,17 @@ def generate_currency_table(url=URL_CURRENCIES_LIST):
         if item['ISO_Char_Code'] != None:
             currency = Currency(item['@ID'], item['ISO_Char_Code'], item['Name'])
             session.add(currency)
-
     session.commit()
 
 
-# generate_currency_table()
-print(session.query(Currency).all())
+def get_currency_code_names():
+    currencies = []
+    for currency in session.query(Currency).all():
+        currencies.append((currency.code, currency.name))
+    return currencies
 
+qwe = get_currency_code_names()
+print(qwe)
 
 def add_to_value_table_for_period(
         cur_code,
@@ -101,12 +104,6 @@ def add_to_value_table_for_period(
         print(cur_code, 'has not values for period')
 
 
-# add_to_value_table_for_period(currency.currency_id)
-# add_to_value_table_for_period('R01510A')
-
-
-# print(session.query(Value).all()[:5])
-
 def generate_value_table_for_period(
         date_req1='01/01/2000',
         date_req2=date.today().strftime("%d/%m/%Y"),
@@ -125,36 +122,54 @@ def generate_value_table_for_period(
 
 
 def get_currency_value(currency_id, cur_req, url=URL_CURRENCY_DAILY):
-    value = session.query(Value).filter(Value.currency_id == currency_id).filter(Value.date == cur_req).all()
-    if value==[]:
-        print('==find internet')
+    value = session.query(Value).filter(Value.currency_id == currency_id).filter(Value.date == cur_req).first()
+    if value == None:
         date_req = cur_req.strftime("%d/%m/%Y")
         parameters = {'date_req': date_req}
         response = requests.get(url, params=parameters)
         tree = xmltodict.parse(response.content)
-        valutes = tree['ValCurs']['Valute']
         valute_value = None
-        for valute in valutes:
-            if valute['@ID'] == currency_id:
-                valute_value = valute['Value'].replace(',', '.')
-                valute_value = float(valute_value)
+        if 'Valute' in tree['ValCurs']:
+            valutes = tree['ValCurs']['Valute']
+            for valute in valutes:
+                if valute['@ID'] == currency_id:
+                    valute_value = valute['Value'].replace(',', '.')
+                    valute_value = float(valute_value)
 
-                value = Value(currency_id, cur_req, valute_value)
-                session.add(value)
-                session.commit()
-                break
+                    value = Value(currency_id, cur_req, valute_value)
+                    session.add(value)
+                    session.commit()
+                    break
         value = valute_value
     else:
-        value = value[0].value
+        value = value.value
     return value
 
-qwe = get_currency_value('R01010', datetime(2000,1,3))
 
-print(date(2000,1,1))
-qwe = session.query(Value).filter(Value.currency_id == 'R01010').filter(Value.date <= datetime(2000,1,6)).all()
-print(qwe)
+# qwe = get_currency_value('R01010', datetime(2000, 1, 5))
+# print(qwe)
+# print('_____')
+# print(date(2000, 1, 1))
+# qwe = session.query(Value).filter(Value.currency_id == 'R01010').filter(Value.date < datetime(2000, 1, 1)).order_by(
+#     Value.date.desc()).first()
+# qwe = value = session.query(Value).filter(Value.currency_id == 'R01010').filter(
+#     Value.date == datetime(2000, 1, 2)).first()
+# print(qwe)
 
 
+def get_currencies_difference(iso_char_code, date_req1, date_req2):
+    currency_id = session.query(Currency).filter(Currency.code == iso_char_code).first().currency_id
+    value1 = get_currency_value(currency_id, date_req1)
+    value2 = get_currency_value(currency_id, date_req2)
+    if value1 is None or value2 is None:
+        value_diff = None
+    else:
+        value_diff = round(value2 - value1, 4)
+    return value1, value2, value_diff
+
+
+# qwe = get_currencies_difference('USD', datetime(1999, 9, 1), datetime(2020, 1, 1))
+# print(qwe)
 
 # currency = Currency('3', 'ddd', '123')
 # session.add(currency)
@@ -175,3 +190,8 @@ print(qwe)
 # print('______')
 # print(session.query(Currency).all())
 # print(session.query(Value).all())
+
+if __name__ == "__main__":
+    if create_database_flag:
+        generate_currency_table()
+        generate_value_table_for_period()
